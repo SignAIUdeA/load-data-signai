@@ -14,11 +14,11 @@ The dataset currently covers 5 signs from LSC. Each sign is a folder under
 
 | Class | Folder | Sign (Spanish) | Meaning (English) |
 |------:|--------|-----------------|--------------------|
-| 1 | [data/landmarks/1](data/landmarks/1) | Café | Coffee |
-| 2 | [data/landmarks/2](data/landmarks/2) | Aromática | Herbal/aromatic tea |
-| 3 | [data/landmarks/3](data/landmarks/3) | Hola | Hello |
-| 4 | [data/landmarks/4](data/landmarks/4) | ¿Qué necesitas? | What do you need? |
-| 5 | [data/landmarks/5](data/landmarks/5) | Con gusto | You're welcome / With pleasure |
+| 1 | [data/landmarks/sign_01](data/landmarks/sign_01) | Café | Coffee |
+| 2 | [data/landmarks/sign_02](data/landmarks/sign_02) | Aromática | Herbal/aromatic tea |
+| 3 | [data/landmarks/sign_03](data/landmarks/sign_03) | Hola | Hello |
+| 4 | [data/landmarks/sign_04](data/landmarks/sign_04) | ¿Qué necesitas? | What do you need? |
+| 5 | [data/landmarks/sign_05](data/landmarks/sign_05) | Con gusto | You're welcome / With pleasure |
 
 These signs were chosen because they represent a small, realistic interaction in a
 coffee-shop setting — greeting a customer, asking what they need, and naming the two
@@ -29,13 +29,16 @@ most common orders (coffee and herbal tea), then closing the interaction politel
 ```
 data/
 └── landmarks/
-    ├── data_curated.csv   # File -> Class index for every clip
-    ├── 1/                 # Clips for "Café"
-    ├── 2/                 # Clips for "Aromática"
-    ├── 3/                 # Clips for "Hola"
-    ├── 4/                 # Clips for "¿Qué necesitas?"
-    └── 5/                 # Clips for "Con gusto"
+    ├── sign_01/           # Clips for "Café"
+    ├── sign_02/           # Clips for "Aromática"
+    ├── sign_03/           # Clips for "Hola"
+    ├── sign_04/           # Clips for "¿Qué necesitas?"
+    └── sign_05/           # Clips for "Con gusto"
 ```
+
+Each `sign_0N` folder holds exactly 300 `.npy` files, for 1,500 clips total. There is
+no separate index file — the class label for a clip comes directly from the
+`sign_0N` folder it lives in.
 
 Each sign folder contains one `.npy` file per **clip**. A clip is a short recording of
 a single performance of the sign, already segmented into frames. Each `.npy` file has
@@ -54,69 +57,54 @@ clip".
 
 ## Filename convention
 
-Every clip file (and its row in `data_curated.csv`) follows this pattern:
+Every clip file follows this pattern:
 
 ```
-S<sign>V<video>C<camera>M<model><variant> Clip<clip_id>.npy
+S<sign>_M<participant>_V<view>_C<camera>_Clip<clip_id>.npy
 ```
 
-For example, `S1V1C1M1A Clip1.npy` means:
+For example, `S01_M01_V01_C01_Clip001.npy` means:
 
-- `S1` — **Seña 1** (Sign 1, "Café")
-- `V1` — **Video/take 1** for that sign
-- `C1` — **Camera/angle 1** used to record it
-- `M1A` — **Modelo 1**, variant `A` (the signer/session performing the sign; the
-  variant letter groups recordings from the same performer/session and is shared by
-  every clip of that sign)
-- `Clip1` — Clip 1, i.e. this specific segmented recording
+- `S01` — **Sign 01** ("Café")
+- `M01` — **Participant 01**, one of the four signers who recorded the corpus
+- `V01` — **View/capture angle 01**
+- `C01` — **Camera 01** used to record it
+- `Clip001` — Clip 1, i.e. this specific segmented recording
 
-Each sign has its own combination of video takes, camera angles and models, and
-therefore a different number of clips per sign — they are **not** interchangeable
-across signs. For this dataset, every sign has 4 video takes × 3 cameras × 25
-repetitions = 300 clips, for 1500 clips in total across the 5 signs. Clip IDs are
-numbered globally and continuously across the whole dataset (e.g. sign 1 uses clips
-1–300, sign 2 uses 301–600, and so on), rather than restarting per sign.
+`S`, `M`, `V`, and `C` are zero-padded to 2 digits; `Clip` is zero-padded to at least
+3 digits (4 digits once the global clip id passes 999). Clip IDs are numbered globally
+and continuously across the whole dataset (sign 1 uses clips 1–300, sign 2 uses
+301–600, and so on), not restarted per sign — but the loader does not rely on that,
+since the class label is always read from the `sign_0N` folder a file lives in.
 
-## `data_curated.csv`
-
-`data/landmarks/data_curated.csv` is the index that ties every clip file to its class
-label:
-
-| Column | Description |
-|--------|--------------|
-| `File` | Clip filename (matches a `.npy` file inside its class folder) |
-| `Class` | Sign/class number (`1`–`5`), matching the folder the file lives in |
-
-```csv
-File,Class
-S1V3C1M3A Clip166.npy,1
-S1V1C1M1A Clip18.npy,1
-S4V1C2M1D Clip929.npy,4
-S5V1C1M1D Clip1202.npy,5
-```
+Each sign folder has 300 clips (4 participants × 3 views × 25 repetitions), for 1,500
+clips total across the 5 signs.
 
 ## Loading the data
 
+The `signai_landmarks` package (in [src/signai_landmarks](src/signai_landmarks))
+implements this loading logic:
+
 ```python
-import pandas as pd
-import numpy as np
-from pathlib import Path
+from signai_landmarks import load_dataset
 
-DATA_DIR = Path("data/landmarks")
-index = pd.read_csv(DATA_DIR / "data_curated.csv")
-
-sequences, labels = [], []
-for _, row in index.iterrows():
-    landmarks = np.load(DATA_DIR / str(row["Class"]) / row["File"])  # (frames, 1662)
-    sequences.append(landmarks)
-    labels.append(row["Class"])
+X, y = load_dataset("data/landmarks")
+# X: object-dtype ndarray, shape (1500,), each element a (num_frames, 1662) array
+# y: int ndarray, shape (1500,), the sign class (1-5) for each clip
 ```
+
+Install it locally with `pip install -e .` (or `pip install -e ".[dev,notebook]"` to
+also get the test and notebook dependencies).
 
 Since `num_frames` differs per clip, sequences must be padded/truncated to a fixed
 length (or fed to a model that supports variable-length input) before batching, e.g.
 with `tf.keras.preprocessing.sequence.pad_sequences` or an equivalent PyTorch
 padding utility.
 
+See [notebooks/explore_dataset.ipynb](notebooks/explore_dataset.ipynb) for a worked
+example that loads the dataset and visualizes class balance, sequence lengths, and
+the extracted pose/hand skeleton.
+
 ## License
 
-MIT — see [LICENSE](LICENSE).
+CC BY 4.0 — see [LICENSE](LICENSE).

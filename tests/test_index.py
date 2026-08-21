@@ -1,25 +1,56 @@
-from pathlib import Path
+import pytest
 
-import pandas as pd
-
-from signai_landmarks.index import load_index, resolve_path
+from signai_landmarks.index import class_label_from_dir, load_index
 
 
-def test_resolve_path_builds_class_subfolder_path():
-    path = resolve_path("data/landmarks", "S1V1C1M1A Clip1.npy", 1)
-    assert path == Path("data/landmarks/1/S1V1C1M1A Clip1.npy")
+def test_class_label_from_dir_parses_prefix():
+    assert class_label_from_dir("sign_03") == 3
 
 
-def test_load_index_adds_resolved_path_column(tmp_path):
+def test_class_label_from_dir_rejects_unprefixed_name():
+    with pytest.raises(ValueError):
+        class_label_from_dir("03")
+
+
+def test_load_index_walks_sign_folders(tmp_path):
     landmarks_dir = tmp_path / "landmarks"
-    landmarks_dir.mkdir()
-    pd.DataFrame(
-        {"File": ["a.npy", "b.npy"], "Class": [1, 2]}
-    ).to_csv(landmarks_dir / "data_curated.csv", index=False)
+    sign_01 = landmarks_dir / "sign_01"
+    sign_02 = landmarks_dir / "sign_02"
+    sign_01.mkdir(parents=True)
+    sign_02.mkdir(parents=True)
 
-    df = load_index(landmarks_dir)
+    (sign_01 / "S01_M02_V01_C01_Clip002.npy").touch()
+    (sign_01 / "S01_M01_V01_C01_Clip001.npy").touch()
+    (sign_02 / "S02_M01_V01_C02_Clip301.npy").touch()
 
-    assert list(df["Path"]) == [
-        landmarks_dir / "1" / "a.npy",
-        landmarks_dir / "2" / "b.npy",
+    pairs = load_index(landmarks_dir)
+
+    assert pairs == [
+        (sign_01 / "S01_M01_V01_C01_Clip001.npy", 1),
+        (sign_01 / "S01_M02_V01_C01_Clip002.npy", 1),
+        (sign_02 / "S02_M01_V01_C02_Clip301.npy", 2),
     ]
+
+
+def test_load_index_ignores_non_sign_dirs_and_non_npy_files(tmp_path):
+    landmarks_dir = tmp_path / "landmarks"
+    sign_01 = landmarks_dir / "sign_01"
+    sign_01.mkdir(parents=True)
+    (sign_01 / "S01_M01_V01_C01_Clip001.npy").touch()
+    (sign_01 / "notes.txt").touch()
+    (landmarks_dir / "other_stuff").mkdir()
+    (landmarks_dir / "README.md").touch()
+
+    pairs = load_index(landmarks_dir)
+
+    assert pairs == [(sign_01 / "S01_M01_V01_C01_Clip001.npy", 1)]
+
+
+def test_load_index_raises_on_missing_or_empty_landmarks_dir(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        load_index(tmp_path / "does_not_exist")
+
+    empty_dir = tmp_path / "empty"
+    empty_dir.mkdir()
+    with pytest.raises(FileNotFoundError):
+        load_index(empty_dir)
