@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "signai-landmarks"
+version = "0.1.0"
+description = "Modular loader for the LSC landmark dataset, producing (X, y) arrays for training."
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+notebook = ["matplotlib>=3.7", "jupyter>=1.0", "ipykernel>=6.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/signai_landmarks"]
