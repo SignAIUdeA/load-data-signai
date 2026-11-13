@@ -105,6 +105,32 @@ See [notebooks/explore_dataset.ipynb](notebooks/explore_dataset.ipynb) for a wor
 example that loads the dataset and visualizes class balance, sequence lengths, and
 the extracted pose/hand skeleton.
 
+## Landmark extraction (replication)
+
+The published arrays were produced with the code in
+[src/signai_landmarks/extraction.py](src/signai_landmarks/extraction.py), ported
+without changes to its logic from the original pipeline (`SignAIUdeA/AI`, commit
+`b9ddcb6`, `Modeling/Preprocessing/holistic.py`).
+
+- MediaPipe Holistic with `static_image_mode=False` and `model_complexity=2`; all
+  other parameters keep the MediaPipe defaults. One Holistic instance per video.
+- Frames are read with OpenCV until the last decoded frame, converted from BGR to
+  RGB and processed one by one.
+- Each frame gives one row of 1,662 values (pose, face, left hand, right hand, in
+  that order). A component that is not detected is stored as a block of zeros.
+- No normalization, imputation, resampling, padding or truncation is applied.
+  Arrays are saved as float64 `.npy` files.
+
+Versions used: Python 3.10, mediapipe 0.10.5, opencv-python 4.8.1.78, numpy 1.26.0.
+
+```bash
+pip install -e ".[extract]"          # in a Python 3.10 environment
+python -m signai_landmarks.extraction <videos_dir> <out_dir>
+```
+
+`<videos_dir>` must contain `sign_0N/<name>.mp4`; each output is written to
+`<out_dir>/sign_0N/<name>.npy`.
+
 ## License
 
 CC BY 4.0 — see [LICENSE](LICENSE).

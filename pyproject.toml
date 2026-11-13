@@ -14,6 +14,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
 notebook = ["matplotlib>=3.7", "jupyter>=1.0", "ipykernel>=6.0"]
+# Exact versions used to extract the published landmarks (run with Python 3.10).
+extract = ["mediapipe==0.10.5", "opencv-python==4.8.1.78", "numpy==1.26.0"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/signai_landmarks"]
